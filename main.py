@@ -1,7 +1,30 @@
-import pygame, sys
+import pygame, sys, os
 from src.settings import *
 from src.character import Character
 from src.debug import debug
+from src.tile import Tile
+
+def create_sprite_dict(path, scale):
+    # calls the import_spritesheets 
+    sprite_dict = {}
+    sprite_types = os.listdir(path)
+    for sprite_type in sprite_types:
+        sprites_list = os.listdir(path+'/'+sprite_type)
+        sprite_dict[sprite_type] = []
+        for sprite in sprites_list:
+            if sprite.split('.')[1] == 'png':
+                sprite = pygame.image.load(path+'/'+sprite_type+'/'+sprite).convert_alpha()
+                sprite = pygame.transform.scale(sprite, (sprite.get_width()*scale, sprite.get_height()*scale))
+                sprite_dict[sprite_type].append(sprite)
+    return sprite_dict
+
+def create_many_sprite_dicts(path, scale):
+    sprite_dict = {}
+    sprite_types = os.listdir(path)
+    for sprite_type in sprite_types:
+        sprites = create_sprite_dict(path+'/'+sprite_type, scale)
+        sprite_dict[sprite_type] = sprites
+    return sprite_dict
 
 if __name__ == '__main__':
     pygame.init()
@@ -11,20 +34,28 @@ if __name__ == '__main__':
     font = pygame.font.Font(FONT, 20)
 
     visible_sprites = pygame.sprite.Group()
+    obstacle_sprites = pygame.sprite.Group()
 
-    player = Character('player', [visible_sprites])
+    player = Character('player', [visible_sprites], obstacle_sprites)
     player.import_img('./graphics/test/right_player.png')
-
+    
+    ground_img = pygame.image.load('./graphics/test/ground.png')
+    for i in range(WIDTH//TILESIZE):
+        Tile([visible_sprites, obstacle_sprites], 'ground', ground_img, i*TILESIZE)
 
     while True:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 pygame.quit()
                 sys.exit()
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_w and player.jumps>0:
+                    player.velocity[1] = -player.jump_speed
+                    player.jumps-=1
 
         display_surface.fill('black')
         visible_sprites.draw(display_surface)
         visible_sprites.update()
-        debug(display_surface, str(player.velocity[0]),font)
+        debug(display_surface, str(player.falling[0] and player.falling[1]),font)
         pygame.display.update()    
         clock.tick(FPS)
