@@ -16,3 +16,4 @@ if __name__ == '__main__':
         display_surface.fill('black')
         pygame.display.update()    
         clock.tick(FPS)
+        
