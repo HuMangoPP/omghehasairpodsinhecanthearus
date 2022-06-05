@@ -1,3 +1,4 @@
+from code import interact
 import pygame, sys, os, json
 from src.settings import *
 from src.character import Character
@@ -29,7 +30,7 @@ def create_many_sprite_dicts(path, scale):
     return sprite_dict
 
 levels = []
-current_level = 1
+current_level = 0
 
 def load_levels(path):
     all_levels = os.listdir(path)
@@ -40,6 +41,27 @@ def load_levels(path):
             level = json.load(level_file)
             levels.append(level)
 
+def load_current_level():
+    visible_sprites = pygame.sprite.Group()
+    obstacle_sprites = pygame.sprite.Group()
+    interactable_sprites = pygame.sprite.Group()
+    for row in levels[current_level]:
+        for col in levels[current_level][row]:
+            Tile([visible_sprites,obstacle_sprites],'ground',ground_img,int(col)*TILESIZE,int(row)*TILESIZE)
+    
+    player = Player('player', [visible_sprites], obstacle_sprites,interactable_sprites)
+    character = Character('character', [visible_sprites], obstacle_sprites,interactable_sprites)
+    interactable = Interactable([visible_sprites,interactable_sprites],'spring',obstacle_sprites,player)
+    player.import_img('./graphics/test/right_player.png')
+    character.import_img('./graphics/test/koopa.png')
+    interactable.import_img('./graphics/test/spring.png')
+
+    return (player, character, interactable,
+            visible_sprites,
+            obstacle_sprites,
+            interactable_sprites)
+
+
 if __name__ == '__main__':
     pygame.init()
     pygame.display.set_caption("personal_gamejam_1")
@@ -47,25 +69,16 @@ if __name__ == '__main__':
     clock = pygame.time.Clock();
     font = pygame.font.Font(FONT, 20)
 
-    visible_sprites = pygame.sprite.Group()
-    obstacle_sprites = pygame.sprite.Group()
-    interactable_sprites = pygame.sprite.Group()
 
-    player = Player('player', [visible_sprites], obstacle_sprites,interactable_sprites)
-    player.import_img('./graphics/test/right_player.png')
-
-    character = Character('character', [visible_sprites], obstacle_sprites,interactable_sprites)
-    character.import_img('./graphics/test/koopa.png')
-
-    interactable = Interactable([visible_sprites,interactable_sprites],'spring',obstacle_sprites,player)
-    interactable.import_img('./graphics/test/spring.png')
-    
     ground_img = pygame.image.load('./graphics/test/ground.png')
     ground_img = pygame.transform.scale(ground_img,(TILESIZE,TILESIZE))
-    load_levels('./src/levels/')
-    for row in levels[current_level]:
-        for col in levels[current_level][row]:
-            Tile([visible_sprites,obstacle_sprites],'ground',ground_img,int(col)*TILESIZE,int(row)*TILESIZE)
+    load_levels('./src/test_level/')
+
+    (player,character,interactable,
+    visible_sprites,
+    obstacle_sprites,
+    interactable_sprites) = load_current_level()
+
 
     player_pressed_jump = False
     jump_press_time = None
@@ -93,11 +106,19 @@ if __name__ == '__main__':
             elif pygame.time.get_ticks()-jump_press_time>jump_press_accepted_input:
                 player_pressed_jump = False
 
+        if character.check_goal():
+            current_level+=1
+            current_level%=len(levels)
+            (player,character,interactable,
+            visible_sprites,
+            obstacle_sprites,
+            interactable_sprites) = load_current_level()
+
 
         display_surface.fill('black')
         visible_sprites.draw(display_surface)
         interactable_sprites.draw(display_surface)
         visible_sprites.update()
-        debug(display_surface, str(character.falling[0] and character.falling[1]),font)
+        debug(display_surface, str(interactable.velocity),font)
         pygame.display.update()    
         clock.tick(FPS)

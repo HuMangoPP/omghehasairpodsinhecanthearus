@@ -5,12 +5,13 @@ class Interactable(pygame.sprite.Sprite):
     def __init__(self,groups, type,obstacle_sprites,player):
         super().__init__(groups)
         self.type = type
-        self.picked_up = False
+        self.picked_up = True
         self.velocity = [0,0]
         self.gravity=0.5
         self.friction = 0.2
         self.obstacle_sprites=obstacle_sprites
         self.player=player
+        self.player.holding_item=self
     
     def import_img(self, path):
         self.image = pygame.image.load(path).convert_alpha()
@@ -47,16 +48,30 @@ class Interactable(pygame.sprite.Sprite):
 
     def check_horizontal_collision(self):
         colliding_sprites = pygame.sprite.spritecollide(self,self.obstacle_sprites,False)
+        rightmost = None
+        leftmost = None
+        for sprite in colliding_sprites:
+            if rightmost == None:
+                rightmost = sprite.rect.right
+            else:
+                rightmost = max(sprite.rect.right,rightmost)
+            if leftmost == None:
+                leftmost = sprite.rect.left
+            else:
+                leftmost = min(sprite.rect.left,leftmost)
+            
         if colliding_sprites:
             if self.velocity[0]>0:
-                self.rect.right=colliding_sprites[0].rect.left
+                self.rect.right=leftmost
             elif self.velocity[0]<0:
-                self.rect.left=colliding_sprites[0].rect.right
+                self.rect.left=rightmost
             self.velocity[0]=0
 
     def check_death(self):
         if self.rect.y>=HEIGHT+200:
-            self.rect.center = (300,500)
+            self.player.holding_item = self
+            self.picked_up = True
+            self.velocity = [0,0]
 
     def update(self):
         self.check_death()
