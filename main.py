@@ -28,7 +28,16 @@ def create_many_sprite_dicts(path, scale):
         sprite_dict[sprite_type] = sprites
     return sprite_dict
 
-level = {}
+levels = []
+current_level = 0
+
+def load_levels(path):
+    all_levels = os.listdir(path)
+    for new_level in all_levels:
+        with open(new_level) as level_file:
+            level = json.load(level_file)
+            levels.append(level)
+
 with open('./src/level.json') as level_file:
     level = json.load(level_file)
 
@@ -53,9 +62,15 @@ if __name__ == '__main__':
     interactable.import_img('./graphics/test/spring.png')
     
     ground_img = pygame.image.load('./graphics/test/ground.png')
-    for row in level:
-        for col in level[row]:
+    ground_img = pygame.transform.scale(ground_img,(TILESIZE,TILESIZE))
+    load_levels('./src/levels')
+    for row in levels[current_level]:
+        for col in levels[current_level][row]:
             Tile([visible_sprites,obstacle_sprites],'ground',ground_img,int(col)*TILESIZE,int(row)*TILESIZE)
+
+    player_pressed_jump = False
+    jump_press_time = None
+    jump_press_accepted_input = 200
 
     while True:
         for event in pygame.event.get():
@@ -63,20 +78,27 @@ if __name__ == '__main__':
                 pygame.quit()
                 sys.exit()
             if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_w and player.jumps>0:
-                    player.velocity[1] = -player.jump_speed
-                    player.jumps-=1
+                if event.key == pygame.K_w:
+                    player_pressed_jump = True
+                    jump_press_time = pygame.time.get_ticks()
                 elif event.key == pygame.K_j:
                     if player.holding_item!=None:
                         player.throw_interactable()
                     else:
                         player.pickup_interactable()
+        if player_pressed_jump:
+            if player.jumps>0:
+                player.velocity[1] = -player.jump_speed
+                player.jumps-=1
+                player_pressed_jump = False
+            elif pygame.time.get_ticks()-jump_press_time>jump_press_accepted_input:
+                player_pressed_jump = False
+
 
         display_surface.fill('black')
         visible_sprites.draw(display_surface)
         interactable_sprites.draw(display_surface)
         visible_sprites.update()
-        interactable_sprites.update()
-        debug(display_surface, str(character.velocity[0]),font)
+        debug(display_surface, str(character.falling[0] and character.falling[1]),font)
         pygame.display.update()    
         clock.tick(FPS)

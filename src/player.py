@@ -1,25 +1,28 @@
 import pygame
 
+from src.settings import TILESIZE
+
 class Player(pygame.sprite.Sprite):
     def __init__(self, character_type, groups, obstacle_sprites,interactable_sprites):
         super().__init__(groups)
         self.character_type = character_type
         self.velocity = [0, 0]
-        self.speed = 5
+        self.speed = 3
         self.acc = 0.4
-        self.jump_speed = 15
+        self.jump_speed = 12
         self.jumps = 1
         self.gravity = 0.5
         self.falling = [True, True]
         self.holding_item = None
         self.facing = 'right'
-        self.throw_speed = 10
+        self.throw_speed = 8
 
         self.obstacle_sprites = obstacle_sprites
         self.interactable_sprites=interactable_sprites
 
     def import_img(self, path):
         self.image = pygame.image.load(path).convert_alpha()
+        self.image = pygame.transform.scale(self.image,(TILESIZE,TILESIZE))
         self.rect = self.image.get_rect(center=(100,500))
     
     def input(self):
@@ -46,28 +49,21 @@ class Player(pygame.sprite.Sprite):
                 self.velocity[0] = 0
 
     def check_vertical_collision(self):
-        self.rect.y+=1
         colliding_sprites = pygame.sprite.spritecollide(self,self.obstacle_sprites,False)
-        if self.holding_item!=None:
-            colliding_sprites.extend(pygame.sprite.spritecollide(self.holding_item,self.obstacle_sprites,False))
-        self.rect.y-=1
         if colliding_sprites:
             if self.velocity[1]>0:
                 self.rect.bottom=colliding_sprites[0].rect.top
                 self.falling = [self.falling[1], False]
             elif self.velocity[1]<0:
                 self.rect.top=colliding_sprites[0].rect.bottom
+                self.falling = [self.falling[1], True]
             self.velocity[1] = 0
             self.jumps = 1
         else:
             self.falling = [self.falling[1], True]
 
     def check_horizontal_collision(self):
-        self.rect.y-=1
         colliding_sprites = pygame.sprite.spritecollide(self,self.obstacle_sprites,False)
-        if self.holding_item!=None:
-            colliding_sprites.extend(pygame.sprite.spritecollide(self.holding_item,self.obstacle_sprites,False))
-        self.rect.y+=1
         if colliding_sprites:
             if self.velocity[0]>0:
                 self.rect.right=colliding_sprites[0].rect.left
@@ -76,20 +72,20 @@ class Player(pygame.sprite.Sprite):
             self.velocity[0]=0
 
     def fall(self):
-        if self.falling[0] and self.falling[1]:
+        if self.falling[0] or self.falling[1]:
             self.velocity[1]+=self.gravity
 
     def pickup_interactable(self):
-        interactables =  pygame.sprite.spritecollide(self,self.interactable_sprites,False)
-        if interactables:
-            interactables[0].picked_up=True
-            self.holding_item = interactables[0]
+        for sprite in self.interactable_sprites:
+            if self.rect.colliderect(sprite.pickup_box) and self.holding_item==None:
+                sprite.picked_up=True
+                self.holding_item=sprite
 
     def throw_interactable(self):
         if self.facing=='right':
-            self.holding_item.velocity[0]=self.throw_speed
+            self.holding_item.velocity[0]=self.velocity[0]/2+self.throw_speed
         else:
-            self.holding_item.velocity[0]=-self.throw_speed
+            self.holding_item.velocity[0]=self.velocity[0]/2-self.throw_speed
         self.holding_item.picked_up=False
         self.holding_item = None
 
