@@ -14,7 +14,9 @@ class Interactable(pygame.sprite.Sprite):
     
     def import_img(self, path):
         self.image = pygame.image.load(path).convert_alpha()
-        self.rect = self.image.get_rect(center=(500,500))
+        self.image = pygame.transform.scale(self.image,(TILESIZE,TILESIZE))
+        self.rect = self.image.get_rect(center=(300,500))
+        self.pickup_box = self.rect.inflate(TILESIZE,TILESIZE)
     
     def fall(self):
         self.velocity[1]+=self.gravity
@@ -32,11 +34,10 @@ class Interactable(pygame.sprite.Sprite):
         self.check_horizontal_collision()
         self.rect.y+=self.velocity[1]
         self.check_vertical_collision()
+        self.pickup_box.center = self.rect.center
     
     def check_vertical_collision(self):
-        self.rect.y+=1
         colliding_sprites = pygame.sprite.spritecollide(self,self.obstacle_sprites,False)
-        self.rect.y-=1
         if colliding_sprites:
             if self.velocity[1]>0:
                 self.rect.bottom=colliding_sprites[0].rect.top
@@ -45,9 +46,7 @@ class Interactable(pygame.sprite.Sprite):
             self.velocity[1] = 0
 
     def check_horizontal_collision(self):
-        self.rect.y-=1
         colliding_sprites = pygame.sprite.spritecollide(self,self.obstacle_sprites,False)
-        self.rect.y+=1
         if colliding_sprites:
             if self.velocity[0]>0:
                 self.rect.right=colliding_sprites[0].rect.left
@@ -55,11 +54,19 @@ class Interactable(pygame.sprite.Sprite):
                 self.rect.left=colliding_sprites[0].rect.right
             self.velocity[0]=0
 
+    def check_death(self):
+        if self.rect.y>=HEIGHT+200:
+            self.rect.center = (300,500)
+
     def update(self):
+        self.check_death()
         self.slow_down()
         self.move()
         if self.picked_up:
-            self.rect.x=self.player.rect.x
-            self.rect.y=self.player.rect.y-TILESIZE
+            if self.player.facing=='right':
+                self.rect.left = self.player.rect.right
+            else:
+                self.rect.right = self.player.rect.left
+            self.rect.bottom = self.player.rect.bottom
         else:
             self.fall()
