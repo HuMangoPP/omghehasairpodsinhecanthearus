@@ -51,6 +51,10 @@ class Character(pygame.sprite.Sprite):
             if not self.falling[0] or not self.falling[1]:
                 self.velocity[0]=-self.velocity[0]
 
+    def check_death(self):
+        if self.rect.y>=HEIGHT+200:
+            self.rect.center = (96,600)
+
     def fall(self):
         if self.falling[0] or self.falling[1]:
             self.velocity[1]+=self.gravity
@@ -62,6 +66,7 @@ class Character(pygame.sprite.Sprite):
         self.check_vertical_collision()
 
     def update(self):
+        self.check_death()
         self.fall()
         self.check_interactable_collision()
         self.move()

@@ -29,17 +29,16 @@ def create_many_sprite_dicts(path, scale):
     return sprite_dict
 
 levels = []
-current_level = 0
+current_level = 1
 
 def load_levels(path):
     all_levels = os.listdir(path)
+    print(os.getcwd())
+    print(all_levels)
     for new_level in all_levels:
-        with open(new_level) as level_file:
+        with open(path+new_level) as level_file:
             level = json.load(level_file)
             levels.append(level)
-
-with open('./src/level.json') as level_file:
-    level = json.load(level_file)
 
 if __name__ == '__main__':
     pygame.init()
@@ -63,7 +62,7 @@ if __name__ == '__main__':
     
     ground_img = pygame.image.load('./graphics/test/ground.png')
     ground_img = pygame.transform.scale(ground_img,(TILESIZE,TILESIZE))
-    load_levels('./src/levels')
+    load_levels('./src/levels/')
     for row in levels[current_level]:
         for col in levels[current_level][row]:
             Tile([visible_sprites,obstacle_sprites],'ground',ground_img,int(col)*TILESIZE,int(row)*TILESIZE)

@@ -1,6 +1,6 @@
 import pygame
 
-from src.settings import TILESIZE
+from src.settings import *
 
 class Player(pygame.sprite.Sprite):
     def __init__(self, character_type, groups, obstacle_sprites,interactable_sprites):
@@ -89,6 +89,10 @@ class Player(pygame.sprite.Sprite):
         self.holding_item.picked_up=False
         self.holding_item = None
 
+    def check_death(self):
+        if self.rect.y>=HEIGHT+200:
+            self.rect.center = (100,500)
+
     def move(self):
         self.rect.x+=self.velocity[0]
         self.check_horizontal_collision()
@@ -96,6 +100,7 @@ class Player(pygame.sprite.Sprite):
         self.check_vertical_collision()
 
     def update(self):
+        self.check_death()
         self.input()
         self.fall()
         self.move()

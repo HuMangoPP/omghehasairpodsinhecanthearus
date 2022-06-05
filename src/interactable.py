@@ -54,7 +54,12 @@ class Interactable(pygame.sprite.Sprite):
                 self.rect.left=colliding_sprites[0].rect.right
             self.velocity[0]=0
 
+    def check_death(self):
+        if self.rect.y>=HEIGHT+200:
+            self.rect.center = (300,500)
+
     def update(self):
+        self.check_death()
         self.slow_down()
         self.move()
         if self.picked_up:
