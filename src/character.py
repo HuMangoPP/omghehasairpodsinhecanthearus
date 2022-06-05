@@ -25,7 +25,7 @@ class Character(pygame.sprite.Sprite):
         interacting_sprites = pygame.sprite.spritecollide(self,self.interactable_sprites,False)
         for sprite in interacting_sprites:
             if sprite.type == 'spring' and self.velocity[1]>=0 and not sprite.picked_up:
-                self.velocity[1]-=self.jump_speed
+                self.velocity[1] = -self.jump_speed
 
     def check_vertical_collision(self):
         colliding_sprites = pygame.sprite.spritecollide(self,self.obstacle_sprites,False)
@@ -54,6 +54,10 @@ class Character(pygame.sprite.Sprite):
     def check_death(self):
         if self.rect.y>=HEIGHT+200:
             self.rect.center = (96,600)
+
+    def check_goal(self):
+        if self.rect.x>=WIDTH+TILESIZE:
+            return True
 
     def fall(self):
         if self.falling[0] or self.falling[1]:
