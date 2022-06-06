@@ -3,9 +3,9 @@ import pygame
 from src.settings import *
 
 class Player(pygame.sprite.Sprite):
-    def __init__(self, character_type, groups, obstacle_sprites,interactable_sprites):
+    def __init__(self, groups, obstacle_sprites,interactable_sprites):
         super().__init__(groups)
-        self.character_type = character_type
+        # movement logic 
         self.velocity = [0, 0]
         self.speed = 3
         self.acc = 0.4
@@ -17,13 +17,17 @@ class Player(pygame.sprite.Sprite):
         self.facing = 'right'
         self.throw_speed = 8
 
+        # data
+        self.deaths = 0
+
+        # collision logic
         self.obstacle_sprites = obstacle_sprites
         self.interactable_sprites=interactable_sprites
 
-    def import_img(self, path):
-        self.image = pygame.image.load(path).convert_alpha()
-        self.image = pygame.transform.scale(self.image,(TILESIZE,TILESIZE))
-        self.rect = self.image.get_rect(center=(100,500))
+    def import_img(self, img):
+        self.assets = img
+        self.image = self.assets[self.facing][0]
+        self.rect = self.image.get_rect(center=(100,21*TILESIZE))
     
     def input(self):
         keys = pygame.key.get_pressed()
@@ -89,18 +93,27 @@ class Player(pygame.sprite.Sprite):
         self.holding_item.picked_up=False
         self.holding_item = None
 
-    def check_death(self):
-        if self.rect.y>=HEIGHT+200:
-            self.rect.center = (100,500)
+    def check_death(self,current_level):
+        if self.rect.centery>=HEIGHT+200:
+            self.reset()
+            if current_level!=0:
+                self.deaths+=1
+
+    def reset(self):
+        self.rect.center = (100,21*TILESIZE)
 
     def move(self):
-        self.rect.x+=self.velocity[0]
+        self.rect.centerx+=self.velocity[0]
         self.check_horizontal_collision()
-        self.rect.y+=self.velocity[1]
+        self.rect.centery+=self.velocity[1]
         self.check_vertical_collision()
 
-    def update(self):
-        self.check_death()
+    def animate(self):
+        self.image = self.assets[self.facing][0]
+
+    def update(self,current_level):
+        self.check_death(current_level)
         self.input()
         self.fall()
         self.move()
+        self.animate()
