@@ -4,18 +4,26 @@ from src.settings import *
 class Interactable(pygame.sprite.Sprite):
     def __init__(self,groups, type,obstacle_sprites,player):
         super().__init__(groups)
+        # type of interactable currently only spring exists
         self.type = type
+
+        # movement logic
         self.picked_up = True
         self.velocity = [0,0]
         self.gravity=0.5
         self.friction = 0.2
+
+        # collision logic
         self.obstacle_sprites=obstacle_sprites
         self.player=player
         self.player.holding_item=self
+
+        # data
+        self.deaths = 0
     
-    def import_img(self, path):
-        self.image = pygame.image.load(path).convert_alpha()
-        self.image = pygame.transform.scale(self.image,(TILESIZE,TILESIZE))
+    def import_img(self, img):
+        self.assets = img
+        self.image = self.assets[self.type][0]
         self.rect = self.image.get_rect(center=(300,500))
         self.pickup_box = self.rect.inflate(TILESIZE,TILESIZE)
     
@@ -67,14 +75,19 @@ class Interactable(pygame.sprite.Sprite):
                 self.rect.left=rightmost
             self.velocity[0]=0
 
-    def check_death(self):
+    def check_death(self,current_level):
         if self.rect.y>=HEIGHT+200:
-            self.player.holding_item = self
-            self.picked_up = True
-            self.velocity = [0,0]
+            self.reset()
+            if current_level!=0:
+                self.deaths+=1
 
-    def update(self):
-        self.check_death()
+    def reset(self):
+        self.player.holding_item = self
+        self.picked_up = True
+        self.velocity = [0,0]
+
+    def update(self,current_level):
+        self.check_death(current_level)
         self.slow_down()
         self.move()
         if self.picked_up:

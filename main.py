@@ -1,5 +1,4 @@
-from code import interact
-import pygame, sys, os, json
+import pygame, sys, os, json, math
 from src.settings import *
 from src.character import Character
 from src.debug import debug
@@ -7,8 +6,8 @@ from src.tile import Tile
 from src.player import Player
 from src.interactable import Interactable
 
+# creates a dictionary of list of sprites
 def create_sprite_dict(path, scale):
-    # calls the import_spritesheets 
     sprite_dict = {}
     sprite_types = os.listdir(path)
     for sprite_type in sprite_types:
@@ -17,108 +16,218 @@ def create_sprite_dict(path, scale):
         for sprite in sprites_list:
             if sprite.split('.')[1] == 'png':
                 sprite = pygame.image.load(path+'/'+sprite_type+'/'+sprite).convert_alpha()
-                sprite = pygame.transform.scale(sprite, (sprite.get_width()*scale, sprite.get_height()*scale))
+                sprite = pygame.transform.scale(sprite, (scale, scale))
                 sprite_dict[sprite_type].append(sprite)
     return sprite_dict
 
-def create_many_sprite_dicts(path, scale):
-    sprite_dict = {}
-    sprite_types = os.listdir(path)
-    for sprite_type in sprite_types:
-        sprites = create_sprite_dict(path+'/'+sprite_type, scale)
-        sprite_dict[sprite_type] = sprites
-    return sprite_dict
-
-levels = []
-current_level = 0
-
+# load all .json file levels
 def load_levels(path):
+    levels = []
     all_levels = os.listdir(path)
-    print(os.getcwd())
-    print(all_levels)
     for new_level in all_levels:
         with open(path+new_level) as level_file:
             level = json.load(level_file)
             levels.append(level)
+    return levels
 
-def load_current_level():
-    visible_sprites = pygame.sprite.Group()
-    obstacle_sprites = pygame.sprite.Group()
-    interactable_sprites = pygame.sprite.Group()
-    for row in levels[current_level]:
-        for col in levels[current_level][row]:
-            Tile([visible_sprites,obstacle_sprites],'ground',ground_img,int(col)*TILESIZE,int(row)*TILESIZE)
+# load the current level into sprite groups
+def load_current_level(current_level):
+    if current_level>0:
+        visible_sprites.empty()
+        visible_sprites.add(player)
+        visible_sprites.add(character)
+        visible_sprites.add(interactable)
+        obstacle_sprites.empty()
+    for i in range(len(levels)):
+        for row in levels[current_level]:
+            for col in levels[current_level][row]:
+                Tile([visible_sprites,obstacle_sprites],'ground',tile_sprites,int(col)*TILESIZE,int(row)*TILESIZE)
+
+# oscillation for tutorial buttons
+def oscillation():
+    time = pygame.time.get_ticks()
+    value = math.sin(math.pi*time/1000)
+    if value>=0:
+        return 5
+    else: 
+        return 0
+
+# transition from level to level
+def transition(current_level):
+    transition_surface = pygame.display.get_surface()
+    radius = 0
+    while radius<1500:
+        pygame.draw.circle(transition_surface,'black',(WIDTH,HEIGHT-3*TILESIZE),radius)
+        radius+=10
+        pygame.display.update()
+    current_level+=1
+    player.reset()
+    character.reset()
+    interactable.reset()
+    load_current_level(current_level)
+    while radius>10:
+        visible_sprites.draw(transition_surface)
+        pygame.draw.circle(transition_surface,'black',(0,HEIGHT-3*TILESIZE),radius)
+        radius-=10
+        pygame.display.update()
     
-    player = Player('player', [visible_sprites], obstacle_sprites,interactable_sprites)
-    character = Character('character', [visible_sprites], obstacle_sprites,interactable_sprites)
-    interactable = Interactable([visible_sprites,interactable_sprites],'spring',obstacle_sprites,player)
-    player.import_img('./graphics/test/right_player.png')
-    character.import_img('./graphics/test/koopa.png')
-    interactable.import_img('./graphics/test/spring.png')
-
-    return (player, character, interactable,
-            visible_sprites,
-            obstacle_sprites,
-            interactable_sprites)
-
+    return current_level
 
 if __name__ == '__main__':
+    # initializing pygame
     pygame.init()
+    pygame.mixer.init()
     pygame.display.set_caption("personal_gamejam_1")
     display_surface = pygame.display.set_mode((WIDTH, HEIGHT))
     clock = pygame.time.Clock();
-    font = pygame.font.Font(FONT, 20)
+    font = pygame.font.Font(FONT, FONT_SIZE)
 
+    # importing assets
+    mario_sprites = create_sprite_dict('./graphics/mario',TILESIZE)
+    luigi_sprites = create_sprite_dict('./graphics/luigi',TILESIZE)
+    spring_sprites = create_sprite_dict('./graphics/spring',TILESIZE)
+    tile_sprites = create_sprite_dict('./graphics/tiles',TILESIZE)
 
-    ground_img = pygame.image.load('./graphics/test/ground.png')
-    ground_img = pygame.transform.scale(ground_img,(TILESIZE,TILESIZE))
-    load_levels('./src/test_level/')
+    # loaded levels
+    levels = load_levels('./src/levels/')
+    current_level = 0
 
-    (player,character,interactable,
-    visible_sprites,
-    obstacle_sprites,
-    interactable_sprites) = load_current_level()
+    # creating sprite groups
+    visible_sprites = pygame.sprite.Group()
+    obstacle_sprites = pygame.sprite.Group()
+    interactable_sprites = pygame.sprite.Group()
 
+    # loading the level
+    load_current_level(current_level)
 
+    # creating player, character, and item
+    player = Player([visible_sprites], obstacle_sprites,interactable_sprites)
+    character = Character([visible_sprites], obstacle_sprites,interactable_sprites)
+    interactable = Interactable([visible_sprites,interactable_sprites],'spring',obstacle_sprites,player)
+    player.import_img(luigi_sprites)
+    character.import_img(mario_sprites)
+    interactable.import_img(spring_sprites)
+
+    # tutorial sprites
+    arrow_keys = pygame.image.load('./graphics/tutorial/arrow_keys.png').convert_alpha()
+    arrow_keys = pygame.transform.scale(arrow_keys,(TILESIZE*3,TILESIZE*2))
+    arrow_keys_rect = arrow_keys.get_rect()
+    jump_key = pygame.image.load('./graphics/tutorial/jump_key.png').convert_alpha()
+    jump_key = pygame.transform.scale(jump_key,(TILESIZE,TILESIZE))
+    jump_key_rect = jump_key.get_rect()
+
+    # player input 
     player_pressed_jump = False
     jump_press_time = None
-    jump_press_accepted_input = 200
+    player_pressed_throw = False
+    throw_press_time = None
+    accepted_input_time = 200
 
+    # defining values needed to start and end
+    start_time = None
+
+    title_screen_msgs = ["A regular day for Luigi-- but, what is that!?",
+    "Mario is walking into that hole!",
+    "ohmygodmariohasairpodsin!!",
+    "He can't hear us! We have to go help him!",
+    "Let's make sure he gets back home safety.",
+    "With this trusty spring, I can make sure he can",
+    "leap over any obstacle!",]
+    title_screen_txt = []
+    txt_boxes = []
+    for i in range(len(title_screen_msgs)):
+        render_msg = font.render(title_screen_msgs[i],False,'white')
+        title_screen_txt.append(render_msg)
+        txt_boxes.append(render_msg.get_rect(center=(WIDTH//2,100+i*(FONT_SIZE+10))))
+
+    end_screen_msg = "Thank you for bringing Mario to home safetly!"
+    end_screen_txt = font.render(end_screen_msg,False,'white')
+    end_screen_box = end_screen_txt.get_rect(center=(WIDTH//2,300))
+    end_stats = None
+    end_stats_msgs = []
+    end_stats_boxes = []    
+
+    # game logic
+    paused = False
+
+    # main game loop
     while True:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
+                # exit pygame
                 pygame.quit()
                 sys.exit()
-            if event.type == pygame.KEYDOWN:
+            if event.type == pygame.KEYDOWN and not paused:
+                # player input
                 if event.key == pygame.K_w:
                     player_pressed_jump = True
                     jump_press_time = pygame.time.get_ticks()
                 elif event.key == pygame.K_j:
-                    if player.holding_item!=None:
-                        player.throw_interactable()
-                    else:
-                        player.pickup_interactable()
-        if player_pressed_jump:
+                    player_pressed_throw = True
+                    throw_press_time = pygame.time.get_ticks()
+        
+        # jump input leniency
+        if player_pressed_jump and not paused:
             if player.jumps>0:
                 player.velocity[1] = -player.jump_speed
                 player.jumps-=1
                 player_pressed_jump = False
-            elif pygame.time.get_ticks()-jump_press_time>jump_press_accepted_input:
+            if pygame.time.get_ticks()-jump_press_time>accepted_input_time:
                 player_pressed_jump = False
 
-        if character.check_goal():
-            current_level+=1
-            current_level%=len(levels)
-            (player,character,interactable,
-            visible_sprites,
-            obstacle_sprites,
-            interactable_sprites) = load_current_level()
+        # throw/pickup input leniency
+        if player_pressed_throw:
+            if player.holding_item==None:
+                player.pickup_interactable()
+                player_pressed_throw = False
+            else:
+                player.throw_interactable()
+                player_pressed_throw = False
+            if pygame.time.get_ticks()-throw_press_time>accepted_input_time:
+                player_pressed_jump = False
 
+        # makes sure game is running
+        if not paused:
+            # checks if mario has reached the goal for each level
+            if character.check_goal():
+                paused = True
+                current_level = transition(current_level)
+                paused = False
+            
+            # draw and update sprites
+            display_surface.fill('black')
+            visible_sprites.update(current_level)
+            visible_sprites.draw(display_surface)
 
-        display_surface.fill('black')
-        visible_sprites.draw(display_surface)
-        interactable_sprites.draw(display_surface)
-        visible_sprites.update()
-        debug(display_surface, str(interactable.velocity),font)
+            # if game has just started, first level, show text and tutorial
+            if current_level==0:
+                for i in range(len(title_screen_txt)):
+                    display_surface.blit(title_screen_txt[i],txt_boxes[i])
+                arrow_keys_rect.bottomright = player.rect.topleft
+                jump_key_rect.bottomleft = player.rect.topright
+                arrow_keys_rect.bottom += oscillation()
+                jump_key_rect.bottom += oscillation()
+                display_surface.blit(arrow_keys,arrow_keys_rect)
+                display_surface.blit(jump_key,jump_key_rect)
+                start_time = pygame.time.get_ticks()
+
+            # if game has ended, last level, show scores
+            if current_level==len(levels)-1:
+                if end_stats==None:
+                    end_time = pygame.time.get_ticks()
+                    end_stats = ["This run took " + str(end_time-start_time) + " ms",
+                    "Mario died "+str(character.deaths)+ " times",
+                    "Luigi died "+str(player.deaths)+" times",
+                    "Spring thrown away "+str(interactable.deaths)+" times"
+                    ]
+                    for i in range(len(end_stats)):
+                        end_msg = font.render(end_stats[i],False,'white')
+                        end_stats_msgs.append(end_msg)
+                        end_stats_boxes.append(end_msg.get_rect(center=(WIDTH/2,300+(i+1)*(FONT_SIZE+10))))
+                display_surface.blit(end_screen_txt,end_screen_box)
+                for i in range(len(end_stats_msgs)):
+                    display_surface.blit(end_stats_msgs[i],end_stats_boxes[i])
+        
+        # update
         pygame.display.update()    
         clock.tick(FPS)
