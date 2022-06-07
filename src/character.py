@@ -8,8 +8,6 @@ class Character(pygame.sprite.Sprite):
         self.speed = 3
         self.velocity = [self.speed, 0]
         self.acc = 0.4
-        self.jump_speed = 12
-        self.jumps = 1
         self.gravity = 0.5
         self.falling = [True, True]
         self.facing = 'right'
@@ -21,6 +19,9 @@ class Character(pygame.sprite.Sprite):
         # collision logic
         self.obstacle_sprites = obstacle_sprites
         self.interactable_sprites = interactable_sprites
+        self.sprung = False
+        self.sprung_cd = 100
+        self.sprung_time = None
 
     def import_img(self, img):
         self.assets = img
@@ -29,10 +30,19 @@ class Character(pygame.sprite.Sprite):
 
     def check_interactable_collision(self):
         interacting_sprites = pygame.sprite.spritecollide(self,self.interactable_sprites,False)
-        for sprite in interacting_sprites:
-            if sprite.type == 'spring' and self.velocity[1]>=0 and not sprite.picked_up:
-                self.velocity[1] = -self.jump_speed
+        if interacting_sprites and not self.sprung:
+            spring = interacting_sprites[0]
+            if not spring.picked_up:
                 self.boing.play()
+                self.sprung = True
+                self.sprung_time = pygame.time.get_ticks()
+                if spring.orientation == 'vertical':
+                    self.velocity[1] = -spring.vertical_spring
+                else:
+                    if spring.rect.centerx<=self.rect.centerx:
+                        self.velocity[0] = spring.horizontal_spring
+                    else:
+                        self.velocity[0] = -spring.horizontal_spring
 
     def check_vertical_collision(self):
         colliding_sprites = pygame.sprite.spritecollide(self,self.obstacle_sprites,False)
@@ -85,10 +95,22 @@ class Character(pygame.sprite.Sprite):
         self.rect.y+=self.velocity[1]
         self.check_vertical_collision()
 
+        if self.velocity[0]>self.speed+self.acc:
+            self.velocity[0]-=self.acc
+        elif self.velocity[0]<-self.speed-self.acc:
+            self.velocity[0]+=self.acc
+
+    def check_cd(self):
+        time = pygame.time.get_ticks()
+        if self.sprung:
+            if time-self.sprung_time>self.sprung_cd:
+                self.sprung = False
+
     def animate(self):
         self.image = self.assets[self.facing][0]
 
     def update(self,current_level):
+        self.check_cd()
         self.check_death(current_level)
         self.fall()
         self.check_interactable_collision()

@@ -32,12 +32,12 @@ def load_levels(path):
 
 # load the current level into sprite groups
 def load_current_level(current_level):
-    if current_level>0:
+    if player!=None:
         visible_sprites.empty()
+        obstacle_sprites.empty()
         visible_sprites.add(player)
         visible_sprites.add(character)
         visible_sprites.add(interactable)
-        obstacle_sprites.empty()
     for i in range(len(levels)):
         for row in levels[current_level]:
             for col in levels[current_level][row]:
@@ -60,11 +60,11 @@ def transition(current_level):
         pygame.draw.circle(transition_surface,'black',(WIDTH,HEIGHT-3*TILESIZE),radius)
         radius+=10
         pygame.display.update()
-    current_level+=1
-    current_level%=len(levels)
     player.reset()
     character.reset()
     interactable.reset()
+    current_level+=1
+    current_level%=len(levels)
     load_current_level(current_level)
     while radius>10:
         visible_sprites.draw(transition_surface)
@@ -73,6 +73,19 @@ def transition(current_level):
         pygame.display.update()
     
     return current_level
+
+def render_highscores():
+    with open('./src/highscores.json') as score_file:
+            highscores = json.load(score_file)
+    if 'best run' in highscores:
+        highscore_txt.append('best run time: '+str(highscores['best run'][0]))
+        highscore_txt.append('best run mario death: '+str(highscores['best run'][1]))
+        highscore_txt.append('best run luigi death: '+str(highscores['best run'][2]))
+        highscore_txt.append('best run spring use: '+str(highscores['best run'][3]))
+    for i in range(len(highscore_txt)):
+        msg = font.render(highscore_txt[i],False,'white')
+        highscore_render.append(msg)
+        highscore_box.append(msg.get_rect(topleft=(20,20+i*(FONT_SIZE+10))))
 
 if __name__ == '__main__':
     # initializing pygame
@@ -97,6 +110,7 @@ if __name__ == '__main__':
     visible_sprites = pygame.sprite.Group()
     obstacle_sprites = pygame.sprite.Group()
     interactable_sprites = pygame.sprite.Group()
+    player = None
 
     # loading the level
     load_current_level(current_level)
@@ -113,34 +127,26 @@ if __name__ == '__main__':
     arrow_keys = pygame.image.load('./graphics/tutorial/arrow_keys.png').convert_alpha()
     arrow_keys = pygame.transform.scale(arrow_keys,(TILESIZE*3,TILESIZE*2))
     arrow_keys_rect = arrow_keys.get_rect()
-    jump_key = pygame.image.load('./graphics/tutorial/jump_key.png').convert_alpha()
-    jump_key = pygame.transform.scale(jump_key,(TILESIZE,TILESIZE))
-    jump_key_rect = jump_key.get_rect()
+    spring_keys = pygame.image.load('./graphics/tutorial/spring_keys.png').convert_alpha()
+    spring_keys = pygame.transform.scale(spring_keys,(2*TILESIZE,TILESIZE))
+    spring_keys_rect = spring_keys.get_rect()
 
     # player input 
     player_pressed_jump = False
     jump_press_time = None
     player_pressed_throw = False
     throw_press_time = None
+    player_pressed_rotate_spring = False
+    rotate_press_time = None
     accepted_input_time = 200
 
     # defining values needed to start and end
     start_time = None
     highscores = {}
-    with open('./src/highscores.json') as score_file:
-        highscores = json.load(score_file)
     highscore_txt = []
-    if 'best run' in highscores:
-        highscore_txt.append('best run time: '+str(highscores['best run'][0]))
-        highscore_txt.append('best run mario death: '+str(highscores['best run'][1]))
-        highscore_txt.append('best run luigi death: '+str(highscores['best run'][2]))
-        highscore_txt.append('best run spring use: '+str(highscores['best run'][3]))
     highscore_render = []
     highscore_box = []
-    for i in range(len(highscore_txt)):
-        msg = font.render(highscore_txt[i],False,'white')
-        highscore_render.append(msg)
-        highscore_box.append(msg.get_rect(topleft=(20,20+i*(FONT_SIZE+10))))
+    render_highscores()
 
     title_screen_msgs = ["A regular day for Luigi-- but, what is that!?",
     "Mario is walking into that hole!",
@@ -182,10 +188,14 @@ if __name__ == '__main__':
                 if event.key == pygame.K_j:
                     player_pressed_throw = True
                     throw_press_time = pygame.time.get_ticks()
+                if event.key == pygame.K_k:
+                    player_pressed_rotate_spring = True
+                    rotate_press_time = pygame.time.get_ticks()
                 if event.key == pygame.K_r and can_restart:
                     paused = True
                     current_level = transition(current_level)
                     paused = False
+                    can_restart = False
         
         # jump input leniency
         if player_pressed_jump and not paused:
@@ -207,29 +217,41 @@ if __name__ == '__main__':
             if pygame.time.get_ticks()-throw_press_time>accepted_input_time:
                 player_pressed_jump = False
 
+        # spring rotation input leniency
+        if player_pressed_rotate_spring:
+            if player.holding_item!=None:
+                interactable.rotate()
+                player_pressed_rotate_spring = False
+            if pygame.time.get_ticks()-rotate_press_time>accepted_input_time:
+                player_pressed_rotate_spring = False
+
         # makes sure game is running
         if not paused:
-            # checks if mario has reached the goal for each level
-            if character.check_goal():
-                paused = True
-                current_level = transition(current_level)
-                paused = False
             
             # draw and update sprites
             display_surface.fill('black')
             visible_sprites.update(current_level)
             visible_sprites.draw(display_surface)
 
+            # checks if mario has reached the goal for each level
+            if character.check_goal():
+                paused = True
+                current_level = transition(current_level)
+                paused = False
+
             # if game has just started, first level, show text and tutorial
             if current_level==0:
                 for i in range(len(title_screen_txt)):
                     display_surface.blit(title_screen_txt[i],txt_boxes[i])
                 arrow_keys_rect.bottomright = player.rect.topleft
-                jump_key_rect.bottomleft = player.rect.topright
+                spring_keys_rect.bottomleft = player.rect.topright
                 arrow_keys_rect.bottom += oscillation()
-                jump_key_rect.bottom += oscillation()
+                spring_keys_rect.bottom += oscillation()
                 display_surface.blit(arrow_keys,arrow_keys_rect)
-                display_surface.blit(jump_key,jump_key_rect)
+                display_surface.blit(spring_keys,spring_keys_rect)
+                player.deaths=0
+                character.deaths=0
+                interactable.deaths=0
                 start_time = pygame.time.get_ticks()
 
             # if game has ended, last level, show scores
@@ -252,22 +274,6 @@ if __name__ == '__main__':
                         best_run = scores['best run']
                         if end_time-start_time<best_run[0] and character.deaths<best_run[1] and player.deaths<best_run[2] and interactable.deaths<best_run[3]:
                             scores['best run'] = [end_time-start_time, character.deaths, player.deaths, interactable.deaths]
-                    else: 
-                        scores['best run'] = [end_time-start_time, character.deaths, player.deaths, interactable.deaths]
-                    
-                    if 'best parts' in scores:
-                        best_parts = scores['best_parts']
-                        if end_time-start_time<best_run[0]:
-                            scores['best parts'][0] = end_time-start_time
-                        if character.deaths<best_run[1]:
-                            scores['best parts'][1] = character.deaths
-                        if player.deaths<best_run[2]:
-                            scores['best parts'][2] = player.deaths
-                        if interactable.deaths<best_run[3]:
-                            scores['best parts'][3] = player.deaths
-                    else:
-                        scores['best run'] = [end_time-start_time, character.deaths, player.deaths, interactable.deaths]
-                    
                     with open('./src/highscores.json', 'w') as out:
                         json.dump(scores,out)
                 can_restart = True
