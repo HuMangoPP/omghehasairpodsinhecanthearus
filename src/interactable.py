@@ -6,6 +6,7 @@ class Interactable(pygame.sprite.Sprite):
         super().__init__(groups)
         # type of interactable currently only spring exists
         self.type = type
+        self.orientation = 'vertical'
 
         # movement logic
         self.picked_up = True
@@ -17,13 +18,15 @@ class Interactable(pygame.sprite.Sprite):
         self.obstacle_sprites=obstacle_sprites
         self.player=player
         self.player.holding_item=self
+        self.horizontal_spring = 12
+        self.vertical_spring = 12
 
         # data
         self.deaths = 0
     
     def import_img(self, img):
         self.assets = img
-        self.image = self.assets[self.type][0]
+        self.image = self.assets[self.orientation][0]
         self.rect = self.image.get_rect(center=(300,500))
         self.pickup_box = self.rect.inflate(TILESIZE,TILESIZE)
     
@@ -86,6 +89,15 @@ class Interactable(pygame.sprite.Sprite):
         self.picked_up = True
         self.velocity = [0,0]
 
+    def rotate(self):
+        if self.orientation == 'vertical':
+            self.orientation = 'horizontal'
+        else:
+            self.orientation = 'vertical'
+
+    def animate(self):
+        self.image = self.assets[self.orientation][0]
+
     def update(self,current_level):
         self.check_death(current_level)
         self.slow_down()
@@ -98,3 +110,4 @@ class Interactable(pygame.sprite.Sprite):
             self.rect.bottom = self.player.rect.bottom
         else:
             self.fall()
+        self.animate()
